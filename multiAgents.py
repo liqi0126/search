@@ -11,6 +11,57 @@ def scoreEvaluationFunction(currentGameState):
     """
     return currentGameState.getScore()
 
+def betterEvaluationFunction(currentGameState):
+    """
+      Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
+      evaluation function (question 5).
+      DESCRIPTION: <write something here so we know what you did>
+    """
+    def _scoreFromGhost(gameState):
+      score = 0
+      for ghost in gameState.getGhostStates():
+        disGhost = manhattanDistance(gameState.getPacmanPosition(), ghost.getPosition())
+        if ghost.scaredTimer > 0:
+          score += pow(max(8 - disGhost, 0), 2)
+        else:
+          score -= pow(max(7 - disGhost, 0), 2)
+      return score
+
+    def _scoreFromFood(gameState):
+      disFood = []
+      for food in gameState.getFood().asList():
+        disFood.append(1.0/manhattanDistance(gameState.getPacmanPosition(), food))
+      if len(disFood)>0:
+        return max(disFood)
+      else:
+        return 0
+
+    def _scoreFromCapsules(gameState):
+      score = []
+      for Cap in gameState.getCapsules():
+        score.append(50.0/manhattanDistance(gameState.getPacmanPosition(), Cap))
+      if len(score) > 0:
+        return max(score)
+      else:
+        return 0
+
+    def _suicide(gameState):
+      score = 0
+      disGhost = 1e6
+      for ghost in gameState.getGhostStates():
+        disGhost = min(manhattanDistance(gameState.getPacmanPosition(), ghost.getPosition()), disGhost)
+      score -= pow(disGhost, 2)
+      if gameState.isLose():
+        score = 1e6
+      return score
+
+    score = currentGameState.getScore()
+    scoreGhosts = _scoreFromGhost(currentGameState)
+    scoreFood = _scoreFromFood(currentGameState)
+    scoreCapsules = _scoreFromCapsules(currentGameState)
+    return score + scoreGhosts + scoreFood + scoreCapsules
+
+
 class MultiAgentSearchAgent(Agent):
     """
     This class provides some common elements to all of your
@@ -31,10 +82,51 @@ class MultiAgentSearchAgent(Agent):
         self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
 
+
 class MinimaxAgent(MultiAgentSearchAgent):
     """
     Your minimax agent (question 3)
     """
+
+    def max_value(self, gameState, index, depth):
+        if gameState.isWin() or gameState.isLose():
+            return self.evaluationFunction(gameState), None
+        if depth == 0:
+            return self.evaluationFunction(gameState), None
+
+        best_value = -999999999
+        best_action = None
+        actions = gameState.getLegalActions(index)
+        for action in actions:
+            next_state = gameState.generateChild(index, action)
+            if index == self.index:
+                value, _ = self.min_value(next_state, index+1, depth)
+            else:
+                value, _ = self.max_value(next_state, index+1, depth)
+
+            if value > best_value:
+                best_value = value
+                best_action = action
+        return best_value, best_action
+
+    def min_value(self, gameState, index, depth):
+        if gameState.isWin() or gameState.isLose():
+            return self.evaluationFunction(gameState), None
+
+        best_value = 999999999
+        best_action = None
+        actions = gameState.getLegalActions(index)
+        for action in actions:
+            next_state = gameState.generateChild(index, action)
+            if index == gameState.getNumAgents() - 1:
+                value, _ = self.max_value(next_state, 0, depth-1)
+            else:
+                value, _ = self.min_value(next_state, index+1, depth)
+
+            if value < best_value:
+                best_value = value
+                best_action = action
+        return best_value, best_action
 
     def getAction(self, gameState):
         """
@@ -70,16 +162,75 @@ class MinimaxAgent(MultiAgentSearchAgent):
         limits your minimax tree depth (note that depth increases one means
         the pacman and all ghosts has already decide their actions)
         """
-        util.raiseNotDefined()
+        _, best_action = self.max_value(gameState, 0, self.depth)
+        print()
+        return best_action
+
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
     Your minimax agent with alpha-beta pruning (question 3)
     """
 
+    def max_value(self, gameState, index, depth, alpha, beta):
+        if gameState.isWin() or gameState.isLose():
+            return self.evaluationFunction(gameState), None
+        if depth == 0:
+            return self.evaluationFunction(gameState), None
+
+        best_value = -999999999
+        best_action = None
+        actions = gameState.getLegalActions(index)
+        for action in actions:
+            next_state = gameState.generateChild(index, action)
+            if index == self.index:
+                value, _ = self.min_value(next_state, index+1, depth, alpha, beta)
+            else:
+                value, _ = self.max_value(next_state, index+1, depth, alpha, beta)
+
+            if value > best_value:
+                best_value = value
+                best_action = action
+
+            if value >= beta:
+                return value, action
+
+            alpha = max(alpha, value)
+
+        return best_value, best_action
+
+    def min_value(self, gameState, index, depth, alpha, beta):
+        if gameState.isWin() or gameState.isLose():
+            return self.evaluationFunction(gameState), None
+
+        best_value = 999999999
+        best_action = None
+        actions = gameState.getLegalActions(index)
+        for action in actions:
+            next_state = gameState.generateChild(index, action)
+            if index == gameState.getNumAgents() - 1:
+                # here
+                value, _ = self.max_value(next_state, 0, depth-1, alpha, beta)
+            else:
+                value, _ = self.min_value(next_state, index+1, depth, alpha, beta)
+
+            if value < best_value:
+                best_value = value
+                best_action = action
+
+            if value <= alpha:
+                return value, action
+
+            beta = min(beta, value)
+
+        return best_value, best_action
+
     def getAction(self, gameState):
         """
         Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        alpha = -99999999
+        beta = 99999999
+        _, best_action = self.max_value(gameState, 0, self.depth, alpha, beta)
+        return best_action

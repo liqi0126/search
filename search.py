@@ -84,6 +84,24 @@ def tinyMazeSearch(problem):
     w = Directions.WEST
     return  [s, s, w, s, w, w, s, w]
 
+
+def depth_first_exploration(problem, pos, explored_set, actions):
+    for newstate in problem.expand(pos):
+        child, action, _ = newstate
+        if child in explored_set:
+            continue
+
+        actions.push(action)
+        explored_set.append(child)
+        if problem.isGoalState(child):
+            return True
+        if depth_first_exploration(problem, child, explored_set, actions):
+            return True
+        else:
+            actions.pop()
+
+    return False
+
 def depthFirstSearch(problem):
     """
     Search the deepest nodes in the search tree first.
@@ -98,12 +116,50 @@ def depthFirstSearch(problem):
     print("Is the start a goal?", problem.isGoalState(problem.getStartState()))
     """
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    explored_set = []
+    actions = util.Stack()
+    start = problem.getStartState()
+    explored_set.append(start)
+
+    if depth_first_exploration(problem, start, explored_set, actions):
+        return actions.list
+    else:
+        raise RuntimeError
+
 
 def breadthFirstSearch(problem):
     """Search the shallowest nodes in the search tree first."""
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    explored_set = []
+    frontier = util.Queue()
+    parents = {}
+
+    start = problem.getStartState()
+    explored_set.append(start)
+    frontier.push(start)
+    parents[start] = None
+
+    while not frontier.isEmpty():
+        pos = frontier.pop()
+        if problem.isGoalState(pos):
+            actions = []
+            while parents[pos] is not None:
+                parent_node, action = parents[pos]
+                actions.append(action)
+                pos = parent_node
+            actions.reverse()
+            return actions
+
+        for newstate in problem.expand(pos):
+            child, action, _ = newstate
+            if child in explored_set:
+                continue
+            explored_set.append(child)
+            frontier.push(child)
+            parents[child] = (pos, action)
+
+    raise RuntimeError
+
 
 def nullHeuristic(state, problem=None):
     """
@@ -115,7 +171,35 @@ def nullHeuristic(state, problem=None):
 def aStarSearch(problem, heuristic=nullHeuristic):
     """Search the node that has the lowest combined cost and heuristic first."""
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    g_costs = {}
+    frontier = util.PriorityQueue()
+    parents = {}
+
+    start = problem.getStartState()
+    g_costs[start] = 0
+    frontier.push(start, heuristic(start, problem))
+    parents[start] = None
+
+    while not frontier.isEmpty():
+        pos = frontier.pop()
+        if problem.isGoalState(pos):
+            actions = []
+            while parents[pos] is not None:
+                parent_node, action = parents[pos]
+                actions.append(action)
+                pos = parent_node
+            actions.reverse()
+            return actions
+
+        for newstate in problem.expand(pos):
+            child, action, _ = newstate
+            g_cost = g_costs[pos] + problem.getActionCost(pos, action, child)
+            if child not in g_costs or g_costs[child] > g_cost:
+                g_costs[child] = g_cost
+                parents[child] = (pos, action)
+                frontier.update(child, g_costs[child] + heuristic(child, problem))
+
+    raise RuntimeError
 
 # Abbreviations
 bfs = breadthFirstSearch

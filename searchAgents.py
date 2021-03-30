@@ -122,7 +122,7 @@ class SearchAgent(Agent):
 
 class PositionSearchProblem(search.SearchProblem):
     """
-    A search problem defines the state space, start state, goal test, child
+    A search problem defines the state space, start state, goal test.pickle, child
     function and cost function.  This search problem can be used to find paths
     to a particular point on the pacman board.
 
@@ -131,7 +131,7 @@ class PositionSearchProblem(search.SearchProblem):
     Note: this search problem is fully specified; you should NOT change it.
     """
 
-    def __init__(self, gameState, costFn = lambda x: 1, goal=(1,1), start=None, warn=True, visualize=True):
+    def __init__(self, gameState, costFn = lambda x: 1, goal=(1, 1), start=None, warn=True, visualize=True):
         """
         Stores the start and goal.
 
@@ -327,6 +327,11 @@ class AStarFoodSearchAgent(SearchAgent):
         self.searchFunction = lambda prob: search.aStarSearch(prob, foodHeuristic)
         self.searchType = FoodSearchProblem
 
+
+def manhattan(p1, p2):
+    return abs(p1[0] - p2[0]) + abs(p1[1] - p1[1])
+
+
 def foodHeuristic(state, problem):
     """
     Your heuristic for the FoodSearchProblem goes here.
@@ -357,4 +362,55 @@ def foodHeuristic(state, problem):
     """
     position, foodGrid = state
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    gs = problem.startingGameState
+    if 'foods_dis' not in problem.heuristicInfo:
+        foods_dis = {}
+        foods = foodGrid.asList()
+        foods_num = len(foods)
+        for i in range(foods_num):
+            foods_dis[foods[i]] = {}
+            for j in range(i+1, foods_num):
+                dis = mazeDistance(foods[i], foods[j], gs)
+                foods_dis[foods[i]][foods[j]] = dis
+        problem.heuristicInfo['foods_dis'] = foods_dis
+    else:
+        foods_dis = problem.heuristicInfo['foods_dis']
+
+    foods = foodGrid.asList()
+    foods_num = len(foods)
+
+    max_dis = 0
+    max_i, max_j = 0, 0
+    for i in range(foods_num):
+        for j in range(i+1, foods_num):
+            dis = foods_dis[foods[i]][foods[j]]
+            if dis > max_dis:
+                max_dis = dis
+                max_i = i
+                max_j = j
+
+
+    pos_dis = 0
+    if foods_num > 0:
+        # admissible but not consistent
+        # pos_dis = min(manhattan(position, foods[max_i]), manhattan(position, foods[max_j]))
+        # consistent
+        pos_dis = min(mazeDistance(position, foods[max_i], gs), mazeDistance(position, foods[max_j], gs))
+    return max_dis + pos_dis
+
+
+def mazeDistance(point1, point2, gameState):
+    """
+    Returns the maze distance between any two points, using the search functions
+    you have already built. The gameState can be any game state -- Pacman's
+    position in that state is ignored.
+    Example usage: mazeDistance( (2,4), (5,6), gameState)
+    This might be a useful helper function for your ApproximateSearchAgent.
+    """
+    x1, y1 = point1
+    x2, y2 = point2
+    walls = gameState.getWalls()
+    assert not walls[x1][y1], 'point1 is a wall: ' + str(point1)
+    assert not walls[x2][y2], 'point2 is a wall: ' + str(point2)
+    prob = PositionSearchProblem(gameState, start=point1, goal=point2, warn=False, visualize=False)
+    return len(search.bfs(prob))

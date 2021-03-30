@@ -233,12 +233,12 @@ class Counter(dict):
     all keys are defaulted to have value 0.  Using a dictionary:
 
     a = {}
-    print(a['test'])
+    print(a['test.pickle'])
 
     would give an error, while the Counter class analogue:
 
     >>> a = Counter()
-    >>> print(a['test'])
+    >>> print(a['test.pickle'])
     0
 
     returns the default 0 value. Note that to reference a key
@@ -246,8 +246,8 @@ class Counter(dict):
     you can still use the dictionary syntax:
 
     >>> a = Counter()
-    >>> a['test'] = 2
-    >>> print(a['test'])
+    >>> a['test.pickle'] = 2
+    >>> print(a['test.pickle'])
     2
 
     This is very useful for counting things without initializing their counts,
