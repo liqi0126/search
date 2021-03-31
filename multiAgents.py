@@ -4,62 +4,66 @@ import random, util
 
 from game import Agent
 
+
+# def scoreEvaluationFunction(currentGameState):
+#     """
+#     This default evaluation function just returns the score of the state.
+#     The score is the same one displayed in the Pacman GUI.
+#     """
+#     return currentGameState.getScore()
+
 def scoreEvaluationFunction(currentGameState):
-    """
-    This default evaluation function just returns the score of the state.
-    The score is the same one displayed in the Pacman GUI.
-    """
-    return currentGameState.getScore()
+    currentPos = currentGameState.getPacmanPosition()
+    currentFood = currentGameState.getFood().asList()
+    currentGhostStates = currentGameState.getGhostStates()
+    currentScaredTimes = [ghostState.scaredTimer for ghostState in currentGhostStates]
+    currentCapsule = currentGameState.getCapsules()
+    # highest score for a winning state
+    if currentGameState.isWin():
+        return 9999999999
 
-def betterEvaluationFunction(currentGameState):
-    """
-      Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
-      evaluation function (question 5).
-      DESCRIPTION: <write something here so we know what you did>
-    """
-    def _scoreFromGhost(gameState):
-      score = 0
-      for ghost in gameState.getGhostStates():
-        disGhost = manhattanDistance(gameState.getPacmanPosition(), ghost.getPosition())
-        if ghost.scaredTimer > 0:
-          score += pow(max(8 - disGhost, 0), 2)
+    # worst case if pacman and ghost position are the same
+    # but ghost is not scared
+    for state in currentGhostStates:
+        if state.getPosition() == currentPos and state.scaredTimer == 1:
+            return -99999
+
+    score = 0
+
+    # chase food - food gobbling
+    # better score for state with food near and ghosts far
+    # check distance of food from the Pacman
+    foodDistance = [util.manhattanDistance(currentPos, food) \
+                    for food in currentFood]
+    nearestFood = min(foodDistance)
+    # nearer food should have more weightage - take inverse
+    score += float(1 / nearestFood)
+    # subtract the no of food left and proportional weight to this as we want to Pick
+    # state with less food leftover
+    score -= len(currentFood)
+
+    # chase capsule - pellet nabbing
+    # score for capsules
+    if currentCapsule:
+        capsuleDistance = [util.manhattanDistance(currentPos, capsule) \
+                           for capsule in currentCapsule]
+        nearestCapsule = min(capsuleDistance)
+        # near capsule better
+        score += float(10 / nearestCapsule)
+
+    # chase ghost when ghost is scared else avoid - ghost hunting
+    currentGhostDistances = [util.manhattanDistance(currentPos, ghost.getPosition()) \
+                             for ghost in currentGameState.getGhostStates()]
+    nearestCurrentGhost = min(currentGhostDistances)
+    scaredTime = sum(currentScaredTimes)
+    # farther ghosts are better
+    if nearestCurrentGhost >= 1:
+        if scaredTime < 0:
+            score -= 1 / nearestCurrentGhost
         else:
-          score -= pow(max(7 - disGhost, 0), 2)
-      return score
+            score += 1 / nearestCurrentGhost
 
-    def _scoreFromFood(gameState):
-      disFood = []
-      for food in gameState.getFood().asList():
-        disFood.append(1.0/manhattanDistance(gameState.getPacmanPosition(), food))
-      if len(disFood)>0:
-        return max(disFood)
-      else:
-        return 0
-
-    def _scoreFromCapsules(gameState):
-      score = []
-      for Cap in gameState.getCapsules():
-        score.append(50.0/manhattanDistance(gameState.getPacmanPosition(), Cap))
-      if len(score) > 0:
-        return max(score)
-      else:
-        return 0
-
-    def _suicide(gameState):
-      score = 0
-      disGhost = 1e6
-      for ghost in gameState.getGhostStates():
-        disGhost = min(manhattanDistance(gameState.getPacmanPosition(), ghost.getPosition()), disGhost)
-      score -= pow(disGhost, 2)
-      if gameState.isLose():
-        score = 1e6
-      return score
-
-    score = currentGameState.getScore()
-    scoreGhosts = _scoreFromGhost(currentGameState)
-    scoreFood = _scoreFromFood(currentGameState)
-    scoreCapsules = _scoreFromCapsules(currentGameState)
-    return score + scoreGhosts + scoreFood + scoreCapsules
+    return currentGameState.getScore() + score
 
 
 class MultiAgentSearchAgent(Agent):
@@ -77,8 +81,8 @@ class MultiAgentSearchAgent(Agent):
     is another abstract class.
     """
 
-    def __init__(self, evalFn = 'scoreEvaluationFunction', depth = '2'):
-        self.index = 0 # Pacman is always agent index 0
+    def __init__(self, evalFn='scoreEvaluationFunction', depth='2'):
+        self.index = 0  # Pacman is always agent index 0
         self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
 
@@ -100,9 +104,9 @@ class MinimaxAgent(MultiAgentSearchAgent):
         for action in actions:
             next_state = gameState.generateChild(index, action)
             if index == self.index:
-                value, _ = self.min_value(next_state, index+1, depth)
+                value, _ = self.min_value(next_state, index + 1, depth)
             else:
-                value, _ = self.max_value(next_state, index+1, depth)
+                value, _ = self.max_value(next_state, index + 1, depth)
 
             if value > best_value:
                 best_value = value
@@ -119,9 +123,9 @@ class MinimaxAgent(MultiAgentSearchAgent):
         for action in actions:
             next_state = gameState.generateChild(index, action)
             if index == gameState.getNumAgents() - 1:
-                value, _ = self.max_value(next_state, 0, depth-1)
+                value, _ = self.max_value(next_state, 0, depth - 1)
             else:
-                value, _ = self.min_value(next_state, index+1, depth)
+                value, _ = self.min_value(next_state, index + 1, depth)
 
             if value < best_value:
                 best_value = value
@@ -163,7 +167,6 @@ class MinimaxAgent(MultiAgentSearchAgent):
         the pacman and all ghosts has already decide their actions)
         """
         _, best_action = self.max_value(gameState, 0, self.depth)
-        print()
         return best_action
 
 
@@ -184,9 +187,9 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         for action in actions:
             next_state = gameState.generateChild(index, action)
             if index == self.index:
-                value, _ = self.min_value(next_state, index+1, depth, alpha, beta)
+                value, _ = self.min_value(next_state, index + 1, depth, alpha, beta)
             else:
-                value, _ = self.max_value(next_state, index+1, depth, alpha, beta)
+                value, _ = self.max_value(next_state, index + 1, depth, alpha, beta)
 
             if value > best_value:
                 best_value = value
@@ -210,9 +213,9 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
             next_state = gameState.generateChild(index, action)
             if index == gameState.getNumAgents() - 1:
                 # here
-                value, _ = self.max_value(next_state, 0, depth-1, alpha, beta)
+                value, _ = self.max_value(next_state, 0, depth - 1, alpha, beta)
             else:
-                value, _ = self.min_value(next_state, index+1, depth, alpha, beta)
+                value, _ = self.min_value(next_state, index + 1, depth, alpha, beta)
 
             if value < best_value:
                 best_value = value
